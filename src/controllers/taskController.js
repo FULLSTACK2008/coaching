@@ -1,10 +1,22 @@
 const TaskModel = require("../models/taskModel");
 
-// GET all tasks
+// GET all tasks with optional filters
 exports.getAllTasks = (req, res) => {
   try {
-    const tasks = TaskModel.getAllTasks();
-    res.json({ success: true, data: tasks });
+    const { category, priority, tag } = req.query;
+    let tasks = TaskModel.getAllTasks();
+
+    if (category) {
+      tasks = tasks.filter(t => t.category === category);
+    }
+    if (priority) {
+      tasks = tasks.filter(t => t.priority === priority);
+    }
+    if (tag) {
+      tasks = tasks.filter(t => t.tags && t.tags.includes(tag));
+    }
+
+    res.json({ success: true, data: tasks, count: tasks.length });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -26,10 +38,10 @@ exports.getTaskById = (req, res) => {
   }
 };
 
-// CREATE new task
+// CREATE new task with category, priority, and tags
 exports.createTask = (req, res) => {
   try {
-    const { title } = req.body;
+    const { title, category, priority, tags } = req.body;
     
     // SECURITY: Validate input
     if (!title || typeof title !== "string") {
@@ -41,7 +53,7 @@ exports.createTask = (req, res) => {
     }
 
     const userId = req.user?.id || 1; // Get from JWT token
-    const newTask = TaskModel.createTask(title, userId);
+    const newTask = TaskModel.createTask(title, userId, category, priority, tags);
     
     res.status(201).json({ success: true, data: newTask, message: "Task created successfully" });
   } catch (error) {
@@ -53,7 +65,7 @@ exports.createTask = (req, res) => {
 exports.updateTask = (req, res) => {
   try {
     const { id } = req.params;
-    const { title, completed } = req.body;
+    const { title, completed, category, priority, tags } = req.body;
     
     const task = TaskModel.getTaskById(parseInt(id));
     if (!task) {
@@ -69,6 +81,15 @@ exports.updateTask = (req, res) => {
     }
     if (completed !== undefined) {
       updates.completed = Boolean(completed);
+    }
+    if (category !== undefined) {
+      updates.category = category;
+    }
+    if (priority !== undefined) {
+      updates.priority = priority;
+    }
+    if (tags !== undefined) {
+      updates.tags = tags;
     }
 
     const updatedTask = TaskModel.updateTask(parseInt(id), updates);
@@ -89,6 +110,36 @@ exports.deleteTask = (req, res) => {
     }
 
     res.json({ success: true, message: "Task deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// GET task statistics
+exports.getTaskStats = (req, res) => {
+  try {
+    const stats = TaskModel.getTaskStats();
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// GET available categories
+exports.getCategories = (req, res) => {
+  try {
+    const categories = TaskModel.getCategories();
+    res.json({ success: true, data: categories });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// GET available priorities
+exports.getPriorities = (req, res) => {
+  try {
+    const priorities = TaskModel.getPriorities();
+    res.json({ success: true, data: priorities });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
